@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -23,4 +24,7 @@ class Settings:
 
 
 settings = Settings()
+
+if not os.path.exists(settings.DATA_DIR):
+    os.makedirs(settings.DATA_DIR)
 
