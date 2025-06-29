@@ -5,6 +5,7 @@ sdk: gradio
 emoji: 📚
 pinned: false
 short_description: A chatbot that can answer questions about a video.
+sdk_version: 5.35.0
 ---
 
 # Chatbot for Video Question Answering Demo
