@@ -1,3 +1,12 @@
+---
+license: mit
+title: Chatbot for Video Question Answering
+sdk: gradio
+emoji: 📚
+pinned: false
+short_description: A chatbot that can answer questions about a video.
+---
+
 # Chatbot for Video Question Answering Demo
 
 AI chatbot that can answer questions about video content. This project leverages multi-modal LLM, multi-modal RAG pipeline to process video frames, transcribe audio, and retrieval information to provide accurate answers to questions about video content.
