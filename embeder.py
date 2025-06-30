@@ -20,7 +20,7 @@ class MultimodalEmbedder:
             device=0,
             pool=True
         )
-        self.image_model.model.to('cuda')
+        self.image_model.model = self.image_model.model.to('cuda')
 
     @spaces.GPU
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
@@ -37,8 +37,7 @@ class MultimodalEmbedder:
         images = [Image.open(img) if isinstance(img, str) else img for img in images]
         images = [img.convert('RGB') for img in images]
 
-        self.image_model.model = self.image_model.model.to('cuda')
-        embeddings = self.image_model(images, device=0)
+        embeddings = self.image_model(images)
 
         return [emb[0] for emb in embeddings]
 
