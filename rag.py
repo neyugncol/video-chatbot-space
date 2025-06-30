@@ -114,7 +114,7 @@ class VideoRAG:
         segments = sorted(segments, key=lambda s: s['start'])
 
         print(f'Computing embeddings for audio transcripts and video frames...')
-        transcript_embeddings, frame_embeddings = self._compute_embeddings(
+        transcript_embeddings, frame_embeddings = compute_embeddings(
             texts=[s['text'] for s in segments],
             images=frame_paths
         )
@@ -155,15 +155,6 @@ class VideoRAG:
 
         print(f'Video "{video_path}" added with ID {video_id}.')
         return video_id
-
-    @spaces.GPU
-    def _compute_embeddings(self, texts: list[str], images: list[str | Image.Image]) -> tuple[list[list[float]], list[list[float]]]:
-        print(f'Computing embeddings for {len(texts)} texts...')
-        text_embeddings = self.embedder.embed_texts(texts, kind='document', device='cuda')
-        print(f'Computing embeddings for {len(images)} images...')
-        image_embeddings = self.embedder.embed_images(images, device='cuda')
-
-        return text_embeddings, image_embeddings
 
     def search(self, video_id: str, text: str = None, image: str | Image.Image = None, limit: int = 10) -> list[dict]:
         """Search for relevant video frames or transcripts based on text or image input.
@@ -285,6 +276,20 @@ class VideoRAG:
     def clear(self):
         """Clear the RAG system by dropping all tables and resetting video metadata."""
         self._init_db()
+
+
+@spaces.GPU
+def compute_embeddings(
+        embedder: MultimodalEmbedder,
+        texts: list[str],
+        images: list[str | Image.Image]
+) -> tuple[list[list[float]], list[list[float]]]:
+    print(f'Computing embeddings for {len(texts)} texts...')
+    text_embeddings = embedder.embed_texts(texts, kind='document', device='cuda')
+    print(f'Computing embeddings for {len(images)} images...')
+    image_embeddings = embedder.embed_images(images, device='cuda')
+
+    return text_embeddings, image_embeddings
 
 
 def get_significant_frames(frame_embeddings: list[list[float]], threshold: float = 0.8) -> list[int]:
