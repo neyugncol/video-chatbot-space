@@ -42,7 +42,7 @@ Your response MUST be a valid JSON object with the following structure:
   + Speaker IDs start at `0` for the first detected speaker.
   + The speaker ID MUST increment by 1 each time a new, distinct speaker is identified in the audio. Do not reuse speaker IDs within the same transcription.
   + If the same speaker talks again after another speaker, they retain their original speaker ID.
-  + **Segment Splitting Rule**: A segment for the same speaker should only be split if there is a period of silence lasting more than 5 seconds. Otherwise, continuous speech from the same speaker, even with short pauses, should remain within a single segment.
+  + **Segment Splitting Rule**: A segment for the same speaker should only be split if there is a period of silence lasting more than 5 seconds or have length longer than 30 seconds. Otherwise, continuous speech from the same speaker, even with short pauses, should remain within a single segment.
 
 2. Language:
 - `language`: A two-letter ISO 639-1 code representing the primary language of the transcribed text (e.g., "en" for English, "es" for Spanish, "fr" for French).
