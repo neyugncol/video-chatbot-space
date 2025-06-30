@@ -81,6 +81,8 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
             return f'Video with ID "{video_id}" not found in the knowledge-base. Please add the video first using `add_video` tool.'
         if not text_query and not image_query:
             return 'Please provide at least one of `text_query` or `image_query` to search in the video.'
+        if image_query:
+            image_query = os.path.join(settings.DATA_DIR, image_query)
 
         try:
             results = video_rag.search(
