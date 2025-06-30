@@ -39,7 +39,7 @@ def chat(message: dict, history: list[dict]):
                     video_duration = utils.seconds_to_hms(int(utils.get_media_duration(video_path)))
                     history.append({
                         'role': 'assistant',
-                        'content': f'🎥 Indexing video `{step.function.arguments["filename"]}` with length *{video_duration}* '
+                        'content': f'🎥 Indexing video `{step.function.arguments["filename"]}` with length `{video_duration}` '
                                    f'to the knowledge base. This may take a while...'
                     })
                 elif step.function.name == 'search_video_segments':
@@ -54,7 +54,7 @@ def chat(message: dict, history: list[dict]):
                     history.append({
                         'role': 'assistant',
                         'content': f'📖 Reading video segment `{filename}` '
-                                   f'from *{step.function.arguments["start_time"]}* to *{step.function.arguments["end_time"]}*'
+                                   f'from `{step.function.arguments["start"]}` to `{step.function.arguments["end"]}`'
                     })
                 elif step.function.name == 'final_answer':
                     continue
