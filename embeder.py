@@ -36,7 +36,8 @@ class MultimodalEmbedder:
     ) -> list[list[float]]:
         """Embed a list of texts"""
         texts = [f'search_query: {text}' if kind == 'query' else f'search_document: {text}' for text in texts]
-        
+
+        model = self.text_model.to(device)
         all_embeddings = []
         for start in tqdm(range(0, len(texts), self.batch_size), desc='Embed texts'):
             batch_texts = texts[start:start + self.batch_size]
@@ -49,7 +50,7 @@ class MultimodalEmbedder:
             ).to(device)
 
             with torch.no_grad():
-                outputs = self.text_model(**inputs)
+                outputs = model(**inputs)
 
             embeddings = mean_pooling(outputs, inputs['attention_mask'])
             embeddings = F.layer_norm(embeddings, normalized_shape=(embeddings.shape[1],))
@@ -63,6 +64,7 @@ class MultimodalEmbedder:
         images = [Image.open(img) if isinstance(img, str) else img for img in images]
         images = [img.convert('RGB') for img in images]
 
+        model = self.image_model.to(device)
         all_embeddings = []
         for start in tqdm(range(0, len(images), self.batch_size), desc='Embed images'):
             batch_images = images[start:start + self.batch_size]
@@ -70,7 +72,7 @@ class MultimodalEmbedder:
             inputs = self.processor(batch_images, return_tensors='pt').to(device)
 
             with torch.no_grad():
-                outputs = self.image_model(**inputs)
+                outputs = model(**inputs)
 
             embeddings = outputs.last_hidden_state[:, 0]  # CLS token
             embeddings = F.normalize(embeddings, p=2, dim=1)
