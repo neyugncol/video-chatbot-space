@@ -35,7 +35,7 @@ class MultimodalEmbedder:
         inputs = self.tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
 
         with torch.no_grad():
-            outputs = self.text_model.to(device)(**inputs.to(device))
+            outputs = self.text_model.to(device)(**inputs.to(device), batch_size=64)
 
         embeddings = mean_pooling(outputs, inputs['attention_mask'])
         embeddings = F.layer_norm(embeddings, normalized_shape=(embeddings.shape[1],))
@@ -50,7 +50,7 @@ class MultimodalEmbedder:
 
         inputs = self.processor(images, return_tensors='pt')
 
-        embeddings = self.image_model.to(device)(**inputs.to(device)).last_hidden_state
+        embeddings = self.image_model.to(device)(**inputs.to(device), batch_size=64).last_hidden_state
 
         embeddings = F.normalize(embeddings[:, 0], p=2, dim=1)
 
