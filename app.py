@@ -31,7 +31,7 @@ def chat(message: dict, history: list[dict]):
                 if step.function.name == 'download_video':
                     history.append({
                         'role': 'assistant',
-                        'content': f'📥 Downloading video from {step.function.arguments['url']}'
+                        'content': f'📥 Downloading video from {step.function.arguments["url"]}'
                     })
                 elif step.function.name == 'add_video':
                     history.append({
