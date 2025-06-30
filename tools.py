@@ -109,7 +109,8 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
             )
 
         return output
-    
+
+    @tool
     def read_video_segment(video_id: str, start: str, end: str) -> str:
         """
         Read a specific segment of a video by its ID and time range. Use this tool when you want to read a specific segment of a video for further analysis. Don't use this tool to search for video segments, use `search_video_segments` instead. Don't read too long segments.
