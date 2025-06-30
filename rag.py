@@ -6,6 +6,7 @@ import pyarrow as pa
 from PIL import Image
 from scipy.spatial import distance
 from tqdm import tqdm
+import spaces
 
 import utils
 from configs import settings
@@ -91,24 +92,11 @@ class VideoRAG:
 
         print('Extracting video frames')
         # process video frames
-        frame_paths = utils.extract_video_frames(video_path, output_dir=f'{video_path}_frames',
-                                                 frame_rate=self.video_frame_rate)
-        print(f'Computing embeddings for {len(frame_paths)} frames...')
-        # calculate embeddings for frames
-        frame_embeddings = self.embedder.embed_images(frame_paths)
-        # get significant frames to reduce the number of frames
-        frame_indexes = get_significant_frames(frame_embeddings, threshold=0.6)
-        # add frames to the database
-        self.frames_table.add(
-            [{
-                'vector': frame_embeddings[i],
-                'video_id': video_id,
-                'frame_index': i,
-                'frame_path': frame_paths[i],
-            } for i in frame_indexes]
+        frame_paths = utils.extract_video_frames(
+            video_path,
+            output_dir=f'{video_path}_frames',
+            frame_rate=self.video_frame_rate
         )
-        print(f'Added {len(frame_indexes)} significant frames to the database.')
-
         print('Extracting audio from video')
         # transcribe video to text
         audio_path = utils.extract_audio(video_path)
@@ -125,9 +113,11 @@ class VideoRAG:
                 segments.append(segment)
         segments = sorted(segments, key=lambda s: s['start'])
 
-        print(f'Computing embeddings for {len(segments)} transcript segments...')
-        # calculate embeddings for transcripts
-        transcript_embeddings = self.embedder.embed_texts([s['text'] for s in segments])
+        print(f'Computing embeddings for audio transcripts and video frames...')
+        transcript_embeddings, frame_embeddings = self._compute_embeddings(
+            texts=[s['text'] for s in segments],
+            images=frame_paths
+        )
         # add transcripts to the database
         self.transcripts_table.add(
             [{
@@ -141,6 +131,20 @@ class VideoRAG:
         )
         print(f'Added {len(segments)} transcript segments to the database.')
 
+        # get significant frames to reduce the number of frames
+        frame_indexes = get_significant_frames(frame_embeddings, threshold=0.95)
+        print(f'Found {len(frame_indexes)} significant frames out of {len(frame_embeddings)} total frames.')
+        # add frames to the database
+        self.frames_table.add(
+            [{
+                'vector': frame_embeddings[i],
+                'video_id': video_id,
+                'frame_index': i,
+                'frame_path': frame_paths[i],
+            } for i in frame_indexes]
+        )
+        print(f'Added {len(frame_indexes)} significant frames to the database.')
+
         # add video metadata to the database
         self.videos[video_id] = {
             'video_path': video_path,
@@ -151,6 +155,15 @@ class VideoRAG:
 
         print(f'Video "{video_path}" added with ID {video_id}.')
         return video_id
+
+    @spaces.GPU
+    def _compute_embeddings(self, texts: list[str], images: list[str | Image.Image]) -> tuple[list[list[float]], list[list[float]]]:
+        print(f'Computing embeddings for {len(texts)} texts...')
+        text_embeddings = self.embedder.embed_texts(texts, kind='document', device='cuda')
+        print(f'Computing embeddings for {len(images)} images...')
+        image_embeddings = self.embedder.embed_images(images, device='cuda')
+
+        return text_embeddings, image_embeddings
 
     def search(self, video_id: str, text: str = None, image: str | Image.Image = None, limit: int = 10) -> list[dict]:
         """Search for relevant video frames or transcripts based on text or image input.
@@ -164,43 +177,86 @@ class VideoRAG:
         Returns:
             list[dict]: A list of dictionaries containing the search results, each with start and end times, distance, frame paths, and transcript segments.
         """
-
         video_metadata = self.get_video(video_id)
-
-        # search for transcripts based on text
         timespans = []
+
         if text is not None:
-            text_embedding = self.embedder.embed_texts([text])[0]
+            text_embedding = self.embedder.embed_texts([text], kind='query')[0]
+            # search for transcripts based on text
             query = (self.transcripts_table
                     .search(text_embedding)
                     .where(f'video_id = \'{video_id}\'')
                     .limit(limit))
             for result in query.to_list():
+                similarity = self.embedder.similarity(
+                    [text_embedding],
+                    [result['vector']],
+                    pair_type='text-text'
+                )[0][0]
                 timespans.append({
                     'start': result['start'],
                     'end': result['end'],
-                    'distance': distance.cosine(text_embedding, result['vector']),
+                    'similarity': similarity,
                 })
 
-        # search for frames based on image
+            # search for frames based on text
+            query = (self.frames_table
+                    .search(text_embedding)
+                    .where(f'video_id = \'{video_id}\'')
+                    .limit(limit))
+            for result in query.to_list():
+                similarity = self.embedder.similarity(
+                    [text_embedding],
+                    [result['vector']],
+                    pair_type='text-image'
+                )[0][0]
+                start = result['frame_index'] / self.video_frame_rate
+                timespans.append({
+                    'start': start,
+                    'end': start + 1,
+                    'similarity': similarity,
+                })
+
         if image is not None:
             image_embedding = self.embedder.embed_images([image])[0]
+            # search for frames based on image
             query = (self.frames_table
                     .search(image_embedding)
                     .where(f'video_id = \'{video_id}\'')
                     .limit(limit))
             for result in query.to_list():
+                similarity = self.embedder.similarity(
+                    [image_embedding],
+                    [result['vector']],
+                    pair_type='image-image'
+                )[0][0]
                 start = result['frame_index'] / self.video_frame_rate
                 timespans.append({
                     'start': start,
                     'end': start + 1,
-                    'distance': distance.cosine(image_embedding, result['vector']),  # Fix lancedb return large distance
+                    'similarity': similarity,
+                })
+            # search for transcripts based on image
+            query = (self.transcripts_table
+                    .search(image_embedding)
+                    .where(f'video_id = \'{video_id}\'')
+                    .limit(limit))
+            for result in query.to_list():
+                similarity = self.embedder.similarity(
+                    [image_embedding],
+                    [result['vector']],
+                    pair_type='text-image'
+                )[0][0]
+                timespans.append({
+                    'start': result['start'],
+                    'end': result['end'],
+                    'similarity': similarity,
                 })
 
         # merge nearby timespans
         timespans = merge_searched_timespans(timespans, threshold=5)
         # sort timespans by distance
-        timespans = sorted(timespans, key=lambda x: x['distance'])
+        timespans = sorted(timespans, key=lambda x: x['similarity'], reverse=True)
         # limit to k results
         timespans = timespans[:limit]
 
@@ -262,7 +318,7 @@ def merge_searched_timespans(timespans: list[dict], threshold: float) -> list[di
         if gap <= threshold:
             # Extend the current span’s end if needed
             current_span['end'] = max(current_span['end'], next_span['end'])
-            current_span['distance'] = min(current_span['distance'], next_span['distance'])
+            current_span['similarity'] = max(current_span['similarity'], next_span['similarity'])
         else:
             # No merge push current and start a new one
             merged_spans.append(current_span)

@@ -17,8 +17,8 @@ class Settings:
     AUDIO_SEGMENT_LENGTH: int = 300
     CHATBOT_MODEL: str = 'gemini-2.0-flash'
     MODEL_BASE_API: str = 'https://generativelanguage.googleapis.com/v1beta/'
-    TEXT_EMBEDDING_MODEL: str = 'sentence-transformers/all-MiniLM-L6-v2'
-    IMAGE_EMBEDDING_MODEL: str = 'facebook/dinov2-small'
+    TEXT_EMBEDDING_MODEL: str = 'nomic-ai/nomic-embed-text-v1.5'
+    IMAGE_EMBEDDING_MODEL: str = 'nomic-ai/nomic-embed-vision-v1.5'
 
 
 
