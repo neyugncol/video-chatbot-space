@@ -46,13 +46,20 @@ def download_video(
     return output_path, info
 
 
-def extract_video_frames(video_path: str, output_dir: str, frame_rate: float = 1, extension: str = 'jpg') -> list[str]:
-    """Extract frames from a video file at a specified frame rate.
+def extract_video_frames(
+    video_path: str,
+    output_dir: str,
+    frame_rate: float = 1,
+    max_size: int = None,
+    extension: str = 'jpg',
+) -> list[str]:
+    """Extract frames from a video file at a specified frame rate and maximum size.
 
     Args:
         video_path (str): Path to the video file.
         output_dir (str): Directory to save the extracted frames.
         frame_rate (float, optional): Frame rate for extraction. Defaults to 1 frame per second.
+        max_size (int, optional): Maximum width or height for output images. Aspect ratio is preserved.
         extension (str, optional): File extension for the extracted frames. Defaults to 'jpg'.
 
     Returns:
@@ -60,12 +67,19 @@ def extract_video_frames(video_path: str, output_dir: str, frame_rate: float = 1
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    vf_filters = [f'fps={frame_rate}']
+    if max_size:
+        vf_filters.append(
+            f'scale=\'if(gt(iw,ih),min(iw,{max_size}),-1)\':\'if(gt(ih,iw),min(ih,{max_size}),-1)\''
+        )
+
+    vf_option = ','.join(vf_filters)
+
     subprocess.run(
         [
             settings.FFMPEG_PATH,
-            # '-v', 'quiet',
             '-i', video_path,
-            '-vf', f'fps={frame_rate}',
+            '-vf', vf_option,
             '-y',
             f'{output_dir or "."}/%d.{extension}'
         ],
@@ -73,8 +87,10 @@ def extract_video_frames(video_path: str, output_dir: str, frame_rate: float = 1
         stderr=subprocess.DEVNULL,
     )
     # Get all extracted frames
-    results = sorted(glob.glob(f'{output_dir or "."}/*.{extension}'),
-                     key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
+    results = sorted(
+        glob.glob(f'{output_dir or "."}/*.{extension}'),
+        key=lambda x: int(os.path.splitext(os.path.basename(x))[0])
+    )
     if not results:
         raise FileNotFoundError(f'No frames found in "{output_dir}" for video "{video_path}"')
 

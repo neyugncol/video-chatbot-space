@@ -95,7 +95,8 @@ class VideoRAG:
         frame_paths = utils.extract_video_frames(
             video_path,
             output_dir=f'{video_path}_frames',
-            frame_rate=self.video_frame_rate
+            frame_rate=self.video_frame_rate,
+            max_size=settings.MAX_VIDEO_RESOLUTION
         )
         print('Extracting audio from video')
         # transcribe video to text
