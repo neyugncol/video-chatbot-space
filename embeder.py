@@ -17,9 +17,9 @@ class MultimodalEmbedder:
         self.image_model = pipeline(
             'image-feature-extraction',
             model=image_model,
-            device=0,
             pool=True
         )
+        self.image_model.to('cuda')
 
     @spaces.GPU
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
