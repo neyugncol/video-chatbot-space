@@ -35,13 +35,13 @@ class VideoRAG:
         print('Initializing LanceDB...')
         self.db = lancedb.connect(f'{settings.DATA_DIR}/vectordb')
         self.frames_table = self.db.create_table('frames', mode='overwrite', schema=pa.schema([
-            pa.field('vector', pa.list_(pa.float32(), 384)),
+            pa.field('vector', pa.list_(pa.float32(), self.embedder.image_embedding_size)),
             pa.field('video_id', pa.string()),
             pa.field('frame_index', pa.int32()),
             pa.field('frame_path', pa.string()),
         ]))
         self.transcripts_table = self.db.create_table('transcripts', mode='overwrite', schema=pa.schema([
-            pa.field('vector', pa.list_(pa.float32(), 384)),
+            pa.field('vector', pa.list_(pa.float32(), self.embedder.text_embedding_size)),
             pa.field('video_id', pa.string()),
             pa.field('segment_index', pa.int32()),
             pa.field('start', pa.float64()),

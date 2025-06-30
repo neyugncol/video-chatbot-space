@@ -18,9 +18,11 @@ class MultimodalEmbedder:
         self.tokenizer = AutoTokenizer.from_pretrained(text_model)
         self.text_model = AutoModel.from_pretrained(text_model, trust_remote_code=True)
         self.text_model.eval()
+        self.text_embedding_size = self.text_model.config.hidden_size
 
         self.processor = AutoImageProcessor.from_pretrained(image_model)
         self.image_model = AutoModel.from_pretrained(image_model, trust_remote_code=True)
+        self.image_embedding_size = self.image_model.config.hidden_size
 
     def embed_texts(
             self,
