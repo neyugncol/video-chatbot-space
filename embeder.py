@@ -37,7 +37,7 @@ class MultimodalEmbedder:
         images = [Image.open(img) if isinstance(img, str) else img for img in images]
         images = [img.convert('RGB') for img in images]
 
-        embeddings = self.image_model(images)
+        embeddings = self.image_model(images, device=0)
 
         return [emb[0] for emb in embeddings]
 
