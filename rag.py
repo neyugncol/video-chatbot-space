@@ -115,6 +115,7 @@ class VideoRAG:
 
         print(f'Computing embeddings for audio transcripts and video frames...')
         transcript_embeddings, frame_embeddings = compute_embeddings(
+            self.embedder,
             texts=[s['text'] for s in segments],
             images=frame_paths
         )
