@@ -10,6 +10,7 @@ load_dotenv()
 class Settings:
     DATA_DIR: str = 'data'
     FFMPEG_PATH: str = 'ffmpeg'
+    COOKIES_FILE: str = 'cookies.txt'
     MAX_VIDEO_RESOLUTION: int = 360
     MAX_VIDEO_FPS: float = 30
     VIDEO_EXTENSION: str = 'mp4'
@@ -22,9 +23,11 @@ class Settings:
 
 
 
-
 settings = Settings()
 
 if not os.path.exists(settings.DATA_DIR):
     os.makedirs(settings.DATA_DIR)
+
+with open(settings.COOKIES_FILE, 'w') as f:
+    f.write(os.environ['COOKIES'])
 
