@@ -70,14 +70,11 @@ class VideoChatbot:
 
     def _step_callback(self, step: ActionStep, agent: ToolCallingAgent):
         if step.observations:
-            image_index = 0
-            for image_path in re.findall(r'<observation_image>(.*?)</observation_image>', step.observations):
+            for image_path in re.findall(r'<image>(.*?)</image>\n', step.observations):
                 try:
                     image = Image.open(image_path)
                     step.observations_images.append(image)
-                    step.observations = step.observations.replace(image_path, str(image_index))
-                    image_index += 1
+                    step.observations = step.observations.replace(f'<image>{image_path}</image>\n', '')
                 except Exception as e:
                     print(f'Error loading image {image_path}: {e}')
-
 

@@ -67,6 +67,7 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
         """
         Search for relevant video frames and transcripts based on text or image query. Allows searching within a specific video added to the RAG knowledge-base.
         At least one of `text_query` or `image_query` must be provided.
+        The image frames of the retrieved video segments will be output at a frame rate of 1 frame per second. The order of the frames is according to the returned video segments.
 
         Args:
             video_id (str): The ID of the video to search in. This should be the ID returned by `add_video`.
@@ -74,7 +75,7 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
             image_query (str, optional): The image query to search for in the video frames. This is the filename of the image.
 
         Returns:
-            str: A message indicating the search results or an error message if the video is not found.
+            str: A message indicating the search results or an error message if the video is not found. The output will include the timespan of the video segments, transcript segments, and images of the frames.
         """
 
         if not video_rag.is_video_exists(video_id):
@@ -100,27 +101,32 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
         # build the output message
         output = f'Search results for video ID {video_id}:\n'
         for result in results:
-            # include timespans, transcript segments, and frame paths in the output
+            # include timespans
             timespan_text = f'{utils.seconds_to_hms(int(result["start"]))} - {utils.seconds_to_hms(int(result["end"]))}'
+
+            # include transcript segments
             transcript_texts = []
             for segment in result['transcript_segments']:
                 transcript_texts.append(
                     f'- {utils.seconds_to_hms(int(segment["start"]), drop_hours=True)}'
                     f'-{utils.seconds_to_hms(int(segment["end"]), drop_hours=True)}: {segment["text"]}')
-            observation_image_texts = []
-            for frame_path in result['frame_paths'][::5]:  # take every 5th frame for brevity
-                observation_image_texts.append(f'<observation_image>{frame_path}</observation_image>')
-
             transcript_lines = '\n'.join(transcript_texts)
-            frame_images_lines = ' '.join(observation_image_texts)
+            if transcript_lines:
+                transcript_lines = '\n' + transcript_lines
+
+            # include frame images
+            image_tags = []
+            for frame_path in result['frame_paths']:
+                image_tags.append(f'<image>{frame_path}</image>')
+            frame_images_lines = '\n'.join(image_tags)
+
             output += f'''<video_segment>
 Timespan: {timespan_text}
-Transcript:
-{transcript_lines}
-Frame images: {frame_images_lines}
-</video_segment>\n'''
+Transcript: {transcript_lines}
+{frame_images_lines}
+</video_segment>
+'''
 
         return output
 
     return [add_video, search_in_video]
-
