@@ -4,6 +4,7 @@ import shutil
 import gradio as gr
 from smolagents import ChatMessageToolCall, ActionStep, FinalAnswerStep
 
+import utils
 from agent import VideoChatbot
 from configs import settings
 
@@ -33,18 +34,27 @@ def chat(message: dict, history: list[dict]):
                         'role': 'assistant',
                         'content': f'📥 Downloading video from {step.function.arguments["url"]}'
                     })
-                elif step.function.name == 'add_video':
+                elif step.function.name == 'index_video':
+                    video_path = os.path.join(settings.DATA_DIR, step.function.arguments['filename'])
+                    video_duration = utils.seconds_to_hms(int(utils.get_media_duration(video_path)))
                     history.append({
                         'role': 'assistant',
-                        'content': f'🎥 Processing and adding video `{step.function.arguments["filename"]}` '
+                        'content': f'🎥 Indexing video `{step.function.arguments["filename"]}` with length *{video_duration}* '
                                    f'to the knowledge base. This may take a while...'
                     })
-                elif step.function.name == 'search_in_video':
+                elif step.function.name == 'search_video_segments':
                     filename = os.path.basename(bot.video_rag.videos[step.function.arguments["video_id"]]['video_path'])
                     history.append({
                         'role': 'assistant',
-                        'content': f'🔍 Searching in video `{filename}` '
+                        'content': f'🔍 Searching video segments in `{filename}` '
                                    f'for query: *{step.function.arguments.get("text_query", step.function.arguments.get("image_query", ""))}*'
+                    })
+                elif step.function.name == 'read_video_segment':
+                    filename = os.path.basename(bot.video_rag.videos[step.function.arguments["video_id"]]['video_path'])
+                    history.append({
+                        'role': 'assistant',
+                        'content': f'📖 Reading video segment `{filename}` '
+                                   f'from *{step.function.arguments["start_time"]}* to *{step.function.arguments["end_time"]}*'
                     })
                 elif step.function.name == 'final_answer':
                     continue

@@ -4,6 +4,9 @@ from typing import Any
 from google import genai
 from google.genai import types
 
+import utils
+
+
 class AudioTranscriber:
     """A class to transcribe audio files"""
 
@@ -33,14 +36,14 @@ Your response MUST be a valid JSON object with the following structure:
 - A "segment" is defined as a continuous section of speech from a single speaker include multiple sentences or phrases.
 - Each segment object MUST contain `text`, `start`, `end`, and `speaker` fields.
 - `text`: The verbatim transcription of the speech within that segment.
-- `start`: The precise start time of the segment in seconds, represented as a floating-point number (e.g., 0.0, 5.25).
-- `end`: The precise end time of the segment in seconds, represented as a floating-point number (e.g., 4.9, 10.12).
+- `start`: The precise start time of the segment in seconds, represented as a integer number (e.g., 1, 5)
+- `end`: The precise end time of the segment in seconds, represented as a integer number (e.g., 2, 6)
 - `speaker`: An integer representing the speaker ID.
   + Speaker IDs start at `0` for the first detected speaker.
   + The speaker ID MUST increment by 1 each time a new, distinct speaker is identified in the audio. Do not reuse speaker IDs within the same transcription.
   + If the same speaker talks again after another speaker, they retain their original speaker ID.
   + **Segment Splitting Rule**: A segment for the same speaker should only be split if there is a period of silence lasting more than 5 seconds. Otherwise, continuous speech from the same speaker, even with short pauses, should remain within a single segment.
-  
+
 2. Language:
 - `language`: A two-letter ISO 639-1 code representing the primary language of the transcribed text (e.g., "en" for English, "es" for Spanish, "fr" for French).
 -  If multiple languages are detected in the audio, you MUST select and output only the ISO 639-1 code for the primary language used throughout the audio.
@@ -60,11 +63,11 @@ Your response MUST be a valid JSON object with the following structure:
                             'description': 'The transcribed text for the segment.'
                         },
                         'start': {
-                            'type': 'number',
+                            'type': 'integer',
                             'description': 'The start time of the segment in seconds.'
                         },
                         'end': {
-                            'type': 'number',
+                            'type': 'integer',
                             'description': 'The end time of the segment in seconds.'
                         },
                         'speaker': {
@@ -117,9 +120,11 @@ Your response MUST be a valid JSON object with the following structure:
             if uploaded_file.state == 'FAILED':
                 raise ValueError('Failed to upload the audio file')
 
+        audio_duration = utils.get_media_duration(audio_path)
+
         response = self.client.models.generate_content(
             model=self.model,
-            contents=uploaded_file,
+            contents=[uploaded_file, f'Audio duration: {int(audio_duration)} seconds'],
             config=types.GenerateContentConfig(
                 system_instruction=self.SYSTEM_INSTRUCTION,
                 temperature=0.2,

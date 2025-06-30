@@ -3,6 +3,7 @@ import os.path
 import subprocess
 
 from yt_dlp import YoutubeDL
+from pymediainfo import MediaInfo
 
 from configs import settings
 
@@ -149,6 +150,16 @@ def split_media_file(file_path: str, output_dir: str, segment_length: int = 60) 
     return sorted(glob.glob(f'{output_dir}/*{base_name}_*.{extension}'))
 
 
+def get_media_duration(file_path: str) -> float:
+    """Get the duration of a media file in seconds."""
+    # use pymediainfo to get the duration
+    media_info = MediaInfo.parse(file_path)
+    for track in media_info.tracks:
+        if track.track_type == 'General':
+            return track.duration / 1000.0
+    raise ValueError(f'Could not determine duration for file: {file_path}')
+
+
 def span_iou(span1: tuple[float, float], span2: tuple[float, float]) -> float:
     """Calculate the Intersection over Union (IoU) of two spans."""
     start1, end1 = span1
@@ -179,3 +190,16 @@ def seconds_to_hms(total_seconds: int, drop_hours: bool = False) -> str:
         return f'{minutes:02d}:{seconds:02d}'
 
     return f'{hours:02d}:{minutes:02d}:{seconds:02d}'
+
+
+def hms_to_seconds(hms: str) -> int:
+    """Convert a string formatted as HH:MM:SS to total seconds."""
+    parts = hms.split(':')
+    if len(parts) == 2:  # MM:SS format
+        minutes, seconds = map(int, parts)
+        return minutes * 60 + seconds
+    elif len(parts) == 3:  # HH:MM:SS format
+        hours, minutes, seconds = map(int, parts)
+        return hours * 3600 + minutes * 60 + seconds
+    else:
+        raise ValueError('Invalid time format. Use HH:MM:SS or MM:SS.')

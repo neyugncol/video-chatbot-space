@@ -4,7 +4,7 @@ from smolagents import tool, Tool
 
 import utils
 from configs import settings
-from prompt import video_to_text_prompt
+from prompt import video_to_text_prompt, video_segment_to_text_prompt
 from rag import VideoRAG
 
 
@@ -45,32 +45,32 @@ def download_video(url: str) -> str:
 def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
 
     @tool
-    def add_video(filename: str) -> str:
+    def index_video(filename: str) -> str:
         """
-        Add a video file to the RAG knowledge-base for further search and analysis.
+        Index a video file to the RAG knowledge-base for further search and analysis.
 
         Args:
-            filename (str): The video filename to add.
+            filename (str): The video filename to index.
 
         Returns:
-            str: The video ID if added successfully, or an error message.
+            str: The video ID if indexed successfully, or an error message.
         """
         try:
-            video_id = video_rag.add_video(os.path.join(settings.DATA_DIR, filename))
-            return f'Video added with ID: {video_id}'
+            video_id = video_rag.index(os.path.join(settings.DATA_DIR, filename))
+            return f'Video indexed with ID: {video_id}'
         except Exception as e:
-            return f'Error adding video: {e.__class__.__name__}: {e}'
+            return f'Error indexing video: {e.__class__.__name__}: {e}'
 
 
     @tool
-    def search_in_video(video_id: str, text_query: str = None, image_query: str = None) -> str:
+    def search_video_segments(video_id: str, text_query: str = None, image_query: str = None) -> str:
         """
-        Search for relevant video frames and transcripts based on text or image query. Allows searching within a specific video added to the RAG knowledge-base.
+        Search for relevant video frames and transcripts based on text or image query. Allows searching within a specific video indexed to the RAG knowledge-base.
         At least one of `text_query` or `image_query` must be provided.
         The image frames of the retrieved video segments will be output at a frame rate of 1 frame per second. The order of the frames is according to the returned video segments.
 
         Args:
-            video_id (str): The ID of the video to search in. This should be the ID returned by `add_video`.
+            video_id (str): The ID of the video to search in. This should be the ID returned by `index_video`.
             text_query (str, optional): The text query to search for in the video transcripts.
             image_query (str, optional): The image query to search for in the video frames. This is the filename of the image.
 
@@ -79,7 +79,7 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
         """
 
         if not video_rag.is_video_exists(video_id):
-            return f'Video with ID "{video_id}" not found in the knowledge-base. Please add the video first using `add_video` tool.'
+            return f'Video with ID "{video_id}" not found in the knowledge-base. Please index the video first using `index_video` tool.'
         if not text_query and not image_query:
             return 'Please provide at least one of `text_query` or `image_query` to search in the video.'
         if image_query:
@@ -101,32 +101,45 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
         # build the output message
         output = f'Search results for video ID {video_id}:\n'
         for result in results:
-            # include timespans
-            timespan_text = f'{utils.seconds_to_hms(int(result["start"]))} - {utils.seconds_to_hms(int(result["end"]))}'
-
-            # include transcript segments
-            transcript_texts = []
-            for segment in result['transcript_segments']:
-                transcript_texts.append(
-                    f'- {utils.seconds_to_hms(int(segment["start"]), drop_hours=True)}'
-                    f'-{utils.seconds_to_hms(int(segment["end"]), drop_hours=True)}: {segment["text"]}')
-            transcript_lines = '\n'.join(transcript_texts)
-            if transcript_lines:
-                transcript_lines = '\n' + transcript_lines
-
-            # include frame images
-            image_tags = []
-            for frame_path in result['frame_paths']:
-                image_tags.append(f'<image>{frame_path}</image>')
-            frame_images_lines = '\n'.join(image_tags)
-
-            output += f'''<video_segment>
-Timespan: {timespan_text}
-Transcript: {transcript_lines}
-{frame_images_lines}
-</video_segment>
-'''
+            output += video_segment_to_text_prompt(
+                start=result['start'],
+                end=result['end'],
+                transcript_segments=result['transcript_segments'],
+                frame_paths=result['frame_paths']
+            )
 
         return output
+    
+    def read_video_segment(video_id: str, start: str, end: str) -> str:
+        """
+        Read a specific segment of a video by its ID and time range. Use this tool when you want to read a specific segment of a video for further analysis. Don't use this tool to search for video segments, use `search_video_segments` instead. Don't read too long segments.
 
-    return [add_video, search_in_video]
+        Args:
+            video_id (str): The ID of the video to read.
+            start (str): The start time in HH:MM:SS or MM:SS format. (e.g., "00:01:30" or "01:30" for 1 minute 30 seconds)
+            end (str): The end time in HH:MM:SS or MM:SS format. (e.g., "00:02:00" or "02:00" for 2 minutes)
+
+        Returns:
+            str: A message indicating the segment has been read or an error message if the video is not found. The output will include the video segment's timespan and the path to the video segment file.
+        """
+        if not video_rag.is_video_exists(video_id):
+            return f'Video with ID "{video_id}" not found in the knowledge-base. Please index the video first using `index_video` tool.'
+
+        # convert start and end to seconds
+        start_seconds = utils.hms_to_seconds(start)
+        end_seconds = utils.hms_to_seconds(end)
+
+        try:
+            result = video_rag.read(video_id, start_seconds, end_seconds)
+        except Exception as e:
+            return f'Error reading video segment: {e.__class__.__name__}: {e}'
+
+        return f'''Read video segment of video ID {video_id}:
+{video_segment_to_text_prompt(
+    start=start_seconds,
+    end=end_seconds,
+    transcript_segments=result['transcript_segments'],
+    frame_paths=result['frame_paths']
+)}'''
+
+    return [index_video, search_video_segments, read_video_segment]

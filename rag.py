@@ -76,19 +76,19 @@ class VideoRAG:
             raise ValueError(f'Video with ID {video_id} not found.')
         return self.videos[video_id]
 
-    def add_video(self, video_path: str) -> str:
-        """Add a video to the RAG system by processing its frames and transcripts.
+    def index(self, video_path: str) -> str:
+        """Index a video file into the RAG system by extracting frames, transcribing audio, and computing embeddings.
 
         Args:
-            video_path (str): The path to the video file to be added.
+            video_path (str): The path to the video file to be indexed.
 
         Returns:
-            str: A unique video ID generated for the added video.
+            str: A unique video ID generated for the indexed video.
         """
         # create a unique video ID
         video_id = uuid.uuid4().hex[:8]
 
-        print(f'Adding video "{video_path}" with ID {video_id} to the RAG system...')
+        print(f'Indexing video "{video_path}" with ID {video_id} to the RAG system...')
 
         print('Extracting video frames')
         # process video frames
@@ -149,12 +149,13 @@ class VideoRAG:
         # add video metadata to the database
         self.videos[video_id] = {
             'video_path': video_path,
+            'video_duration': utils.get_media_duration(video_path),
             'frame_dir': f'{video_path}_frames',
             'video_frame_rate': self.video_frame_rate,
             'transcript_segments': segments,
         }
 
-        print(f'Video "{video_path}" added with ID {video_id}.')
+        print(f'Video "{video_path}" indexed with ID {video_id}.')
         return video_id
 
     def search(self, video_id: str, text: str = None, image: str | Image.Image = None, limit: int = 10) -> list[dict]:
@@ -273,6 +274,45 @@ class VideoRAG:
                     timespan['transcript_segments'].append(segment)
 
         return timespans
+
+    def read(self, video_id: str, start: float, end: float) -> dict:
+        """Read a segment of the video by its ID and time range.
+
+        Args:
+            video_id (str): The ID of the video to read.
+            start (float): The start time of the segment in seconds.
+            end (float): The end time of the segment in seconds.
+
+        Returns:
+            dict: A dictionary containing the video segment metadata, including start and end times, frame paths, and transcript segments.
+        """
+        video_metadata = self.get_video(video_id)
+
+        if start > video_metadata['video_duration'] or end > video_metadata['video_duration']:
+            raise ValueError(f'Start ({start}) or end ({end}) time exceeds video duration ({video_metadata["video_duration"]}).')
+
+        timespan = {
+            'start': start,
+            'end': end,
+            'frame_paths': [],
+            'transcript_segments': []
+        }
+
+        # add frame paths
+        for frame_index in range(
+                int(start * self.video_frame_rate),
+                int(end * self.video_frame_rate)
+        ):
+            timespan['frame_paths'].append(os.path.join(video_metadata['frame_dir'], f'{frame_index + 1}.jpg'))
+
+        # add transcript segments
+        for segment in video_metadata['transcript_segments']:
+            if utils.span_iou((segment['start'], segment['end']),
+                              (start, end)) > 0:
+                timespan['transcript_segments'].append(segment)
+
+        return timespan
+
 
     def clear(self):
         """Clear the RAG system by dropping all tables and resetting video metadata."""
