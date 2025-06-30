@@ -99,21 +99,23 @@ def create_video_rag_tools(video_rag: VideoRAG) -> list[Tool]:
         output = f'Search results for video ID {video_id}:\n'
         for result in results:
             # include timespans, transcript segments, and frame paths in the output
-            timespan_text = f'{utils.seconds_to_hms(int(result['start']))} - {utils.seconds_to_hms(int(result['end']))}'
+            timespan_text = f'{utils.seconds_to_hms(int(result["start"]))} - {utils.seconds_to_hms(int(result["end"]))}'
             transcript_texts = []
             for segment in result['transcript_segments']:
                 transcript_texts.append(
-                    f'- {utils.seconds_to_hms(int(segment['start']), drop_hours=True)}'
-                    f'-{utils.seconds_to_hms(int(segment['end']), drop_hours=True)}: {segment['text']}')
+                    f'- {utils.seconds_to_hms(int(segment["start"]), drop_hours=True)}'
+                    f'-{utils.seconds_to_hms(int(segment["end"]), drop_hours=True)}: {segment["text"]}')
             observation_image_texts = []
             for frame_path in result['frame_paths'][::5]:  # take every 5th frame for brevity
                 observation_image_texts.append(f'<observation_image>{frame_path}</observation_image>')
 
+            transcript_lines = '\n'.join(transcript_texts)
+            frame_images_lines = ' '.join(observation_image_texts)
             output += f'''<video_segment>
 Timespan: {timespan_text}
 Transcript:
-{'\n'.join(transcript_texts)}
-Frame images: {' '.join(observation_image_texts)}
+{transcript_lines}
+Frame images: {frame_images_lines}
 </video_segment>\n'''
 
         return output
