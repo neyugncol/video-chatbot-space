@@ -7,3 +7,4 @@ tqdm>=4.67.1
 transformers>=4.53.0
 einops>=0.8.1
 yt-dlp>=2025.6.25
+pymediainfo==7.0.1
