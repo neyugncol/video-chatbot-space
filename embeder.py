@@ -3,6 +3,7 @@ import torch
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 from PIL import Image
+import spaces
 
 
 class MultimodalEmbedder:
@@ -16,10 +17,11 @@ class MultimodalEmbedder:
         self.image_model = pipeline(
             'image-feature-extraction',
             model=image_model,
-            device=0 if torch.cuda.is_available() else -1,
+            device=0,
             pool=True
         )
 
+    @spaces.GPU
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Embed a list of texts"""
         return self.text_model.encode(
@@ -28,6 +30,7 @@ class MultimodalEmbedder:
             show_progress_bar=True
         ).tolist()
 
+    @spaces.GPU
     def embed_images(self, images: list[str | Image.Image]) -> list[list[float]]:
         """Embed a list of images, which can be file paths or PIL Image objects."""
         images = [Image.open(img) if isinstance(img, str) else img for img in images]
