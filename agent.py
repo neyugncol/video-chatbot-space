@@ -6,7 +6,7 @@ from PIL import Image
 
 import tools
 from configs import settings
-from prompt import video_to_text_prompt
+from prompt import image_to_text_prompt, video_to_text_prompt
 from rag import VideoRAG
 
 
@@ -49,6 +49,7 @@ class VideoChatbot:
         for filepath in attachments or []:
             if filepath.endswith(('.jpg', '.jpeg', '.png')):
                 images.append(Image.open(filepath))
+                message = image_to_text_prompt(filepath) + message
             if filepath.endswith('.mp4'):
                 message = video_to_text_prompt(filepath) + message
 
