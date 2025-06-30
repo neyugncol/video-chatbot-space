@@ -34,6 +34,7 @@ def download_video(
         'merge_output_format': extension,
         'outtmpl': f'{output_dir or "."}/%(title)s.%(ext)s',
         'noplaylist': True,
+        'cookiefile': settings.COOKIES_FILE
     }
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
