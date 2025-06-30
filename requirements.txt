@@ -5,4 +5,5 @@ sentence-transformers>=4.1.0
 smolagents[openai]>=1.19.0
 tqdm>=4.67.1
 transformers>=4.53.0
+accelerate
 yt-dlp>=2025.6.25
